@@ -1,0 +1,34 @@
+{
+  "build": {
+    "core": "arduino",
+    "extra_flags": "-DARDUINO_AVR_SEEEDUINO_MEGA",
+    "f_cpu": "16000000L",
+    "hwids": [
+      [
+        "0x2886",
+        "0x0004"
+      ]
+    ],
+    "mcu": "atmega2560",
+    "variant": "standard"
+  },
+  "debug": {
+    "simavr_target": "atmega2560",
+    "avr-stub": {
+      "speed": 115200
+    }
+  },
+  "frameworks": [
+    "arduino"
+  ],
+  "name": "Seeeduino",
+  "upload": {
+    "maximum_ram_size": 32768,
+    "maximum_size": 260106,
+    "protocol": "arduino",
+    "require_upload_port": true,
+    "speed": 115200
+  },
+  "url": "https://www.seeedstudio.com/Seeeduino-V4.2-p-2517.html",
+  "vendor": "SeeedStudio"
+}
