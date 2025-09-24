@@ -331,7 +331,9 @@ static void lcd_implementation_init()
     lcd.createChar(LCD_STR_FEEDRATE[0], feedrate);
     lcd.createChar(LCD_STR_CLOCK[0], clock);
     lcd.clear();
+    lcd.write("Hello!!");
 }
+
 static void lcd_implementation_clear()
 {
     lcd.clear();
@@ -391,7 +393,7 @@ static void lcd_implementation_status_screen()
     tHotend = int(degHotend(1) + 0.5);
     tTarget = int(degTargetHotend(1) + 0.5);
     lcd.print(LCD_STR_THERMOMETER[0]);
-#  else//Heated bed
+#  else //Heated bed
     tHotend=int(degBed() + 0.5);
     tTarget=int(degTargetBed() + 0.5);
     lcd.print(LCD_STR_BEDTEMP[0]);
