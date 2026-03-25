@@ -1,0 +1,122 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <LCDi2c.h>
+
+#define LCD_ROWS    2
+#define LCD_COLUMNS 16
+
+// Using hardware I2C interface
+// A4 SDA
+// A5 SCL
+// I2c address 0x27
+
+#define PIN_SENSOR 2
+#define SERIAL_FREQ 250 // ms
+
+LCDi2c lcd(0x27, Wire);
+
+// Volatile variables for interrupt handling
+volatile unsigned long pulseCount = 0;
+volatile unsigned long lastPulseTime = 0;
+volatile unsigned long pulseInterval = 0;
+volatile bool newPulse = false;
+
+// RPM calculation variables
+float currentRPM = 0.0;
+unsigned long lastSerialUpdate = 0;
+unsigned long totalPulses = 0;
+
+// Interrupt Service Routine for optical sensor
+void sensorISR() {
+    unsigned long currentTime = micros();
+
+    // Calculate time between pulses
+    if (lastPulseTime > 0) {
+        pulseInterval = currentTime - lastPulseTime;
+        newPulse = true;
+    }
+
+    lastPulseTime = currentTime;
+    pulseCount++;
+}
+
+// Calculate RPM from pulse interval
+float calculateRPM() {
+    if (pulseInterval == 0) {
+        return 0.0;
+    }
+
+    // RPM = (60 seconds * 1,000,000 microseconds) / pulse_interval_in_microseconds
+    // Since we have 1 pulse per revolution
+    float rpm = 60000000.0 / (float)pulseInterval;
+
+    return rpm;
+}
+
+// Send statistics to serial port
+void sendStatistics() {
+    Serial.print("RPM: ");
+    Serial.print(currentRPM, 2);
+    Serial.print(" | Pulses: ");
+    Serial.print(totalPulses);
+    Serial.print(" | Interval(us): ");
+    Serial.println(pulseInterval);
+}
+
+// Show statistics on LCD
+void showStatistics() {
+	char rpmBuffer[8];
+	dtostrf(currentRPM, 6, 2, rpmBuffer); // Convert float to string (width 6, 2 decimals)
+
+	lcd.cls();
+	lcd.locate(1, 1);
+    lcd.printf("%s RPM", rpmBuffer);
+	lcd.locate(1, 8);
+    lcd.printf("%lu pulses", totalPulses);
+	lcd.locate(2, 1);
+    lcd.printf("Int %lu", pulseInterval);
+}
+
+void setup() {
+  lcd.begin(LCD_ROWS, LCD_COLUMNS);
+    // Initialize serial communication at 115200 baud
+    Serial.begin(115200);
+
+    // Configure sensor pin as input with pullup
+    pinMode(PIN_SENSOR, INPUT_PULLUP);
+
+    // Attach interrupt (INT0 on pin 2)
+    // FALLING edge trigger for optical sensor
+    attachInterrupt(digitalPinToInterrupt(PIN_SENSOR), sensorISR, FALLING);
+
+    Serial.println("Tachometer initialized");
+    Serial.println("Waiting for pulses...");
+
+    lastSerialUpdate = millis();
+}
+
+void loop() {
+    // Update RPM if new pulse received
+    if (newPulse) {
+        noInterrupts();
+        currentRPM = calculateRPM();
+        totalPulses = pulseCount;
+        newPulse = false;
+        interrupts();
+    }
+
+    // Check if no pulses received for 1 second -> motor stopped
+    unsigned long timeSinceLastPulse = micros() - lastPulseTime;
+    if (timeSinceLastPulse > 1000000 && currentRPM > 0) {
+        currentRPM = 0.0;
+        pulseInterval = 0;
+    }
+
+    // Send statistics at SERIAL_FREQ interval
+    unsigned long currentTime = millis();
+    if (currentTime - lastSerialUpdate >= SERIAL_FREQ) {
+        sendStatistics();
+        lastSerialUpdate = currentTime;
+        showStatistics();
+    }
+}
